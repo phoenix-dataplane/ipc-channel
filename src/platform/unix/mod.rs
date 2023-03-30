@@ -33,6 +33,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, UNIX_EPOCH};
 use std::thread;
+use std::path::Path;
 use mio::unix::EventedFd;
 use mio::{Poll, Token, Events, Ready, PollOpt};
 use tempfile::{Builder, TempDir};
@@ -609,10 +610,10 @@ impl Drop for OsIpcOneShotServer {
 }
 
 impl OsIpcOneShotServer {
-    pub fn new() -> Result<(OsIpcOneShotServer, String),UnixError> {
+    pub fn new_in<P: AsRef<Path>>(dir: P) -> Result<(OsIpcOneShotServer, String),UnixError> {
         unsafe {
             let fd = libc::socket(libc::AF_UNIX, SOCK_SEQPACKET | SOCK_FLAGS, 0);
-            let temp_dir = Builder::new().tempdir().unwrap();
+            let temp_dir = Builder::new().tempdir_in(dir).unwrap();
             let socket_path = temp_dir.path().join("socket");
             let path_string = socket_path.to_str().unwrap();
 
@@ -627,10 +628,14 @@ impl OsIpcOneShotServer {
             }
 
             Ok((OsIpcOneShotServer {
-                fd: fd,
+                fd,
                 _temp_dir: temp_dir,
             }, path_string.to_string()))
         }
+    }
+
+    pub fn new() -> Result<(OsIpcOneShotServer, String),UnixError> {
+        Self::new_in(std::env::temp_dir())
     }
 
     pub fn accept(self) -> Result<(OsIpcReceiver,

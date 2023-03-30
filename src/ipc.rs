@@ -777,6 +777,15 @@ impl<T> IpcOneShotServer<T> where T: for<'de> Deserialize<'de> + Serialize {
         }, name))
     }
 
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "openbsd"))]
+    pub fn new_in<P: AsRef<std::path::Path>>(path: P) -> Result<(IpcOneShotServer<T>, String), io::Error> {
+        let (os_server, name) = OsIpcOneShotServer::new_in(path)?;
+        Ok((IpcOneShotServer {
+            os_server,
+            phantom: PhantomData,
+        }, name))
+    }
+
     pub fn accept(self) -> Result<(IpcReceiver<T>,T), bincode::Error> {
         let (os_receiver, data, os_channels, os_shared_memory_regions) =
             self.os_server.accept()?;
